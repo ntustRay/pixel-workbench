@@ -2,6 +2,8 @@
 
 在瀏覽器處理圖片的小型工作台。照片留在裝置，使用 React、TypeScript、Canvas 與 MediaPipe；不需要帳號、API key 或圖片處理後端。
 
+正式網站：[pixel-workbench-eta.vercel.app](https://pixel-workbench-eta.vercel.app)
+
 ![Pixel Workbench 貼紙工作台預覽](docs/preview.png)
 
 ## 初版功能
@@ -50,6 +52,8 @@ Playwright 預設使用下載的 Chromium；可用 `PLAYWRIGHT_CHANNEL=chrome` �
 ## Vercel 部署
 
 `vercel.json` 固定使用 Vite、`npm ci`、`npm run build` 與 `dist/`。Vercel 建置時會執行 `postinstall`，下載並驗證模型，模型與 WASM 都包含在靜態部署內，不需要 Functions、環境變數或 API key。
+
+`package.json` 固定 Node.js 24.x，讓 Vercel 與 GitHub Actions 使用相同的主要版本。
 
 Git 整合以 `main` 作正式分支，其餘分支可產生 Preview。GitHub Actions 保留作程式碼、瀏覽器及正式 build 的驗證；Vercel 的自動部署與這組檢查各自執行。
 
