@@ -4,13 +4,14 @@ import { readFile } from "node:fs/promises";
 
 test("demo creates a real transparent sticker and downloads an image and batch ZIP", async ({
   page,
+  baseURL,
 }) => {
+  if (!baseURL) throw new Error("測試必須設定 baseURL。");
+  const appOrigin = new URL(baseURL).origin;
   const external: string[] = [];
   page.on("request", (request) => {
-    if (
-      !request.url().startsWith("http://127.0.0.1:4173") &&
-      !request.url().startsWith("blob:")
-    )
+    // URL.origin 同時處理 blob 網址；只接受目前網站的確切 origin。
+    if (new URL(request.url()).origin !== appOrigin)
       external.push(request.url());
   });
   await page.goto("/");
@@ -53,13 +54,11 @@ test("demo creates a real transparent sticker and downloads an image and batch Z
 
 test("reports invalid inputs without adding broken files", async ({ page }) => {
   await page.goto("/");
-  await page
-    .getByLabel("選擇圖片", { exact: true })
-    .setInputFiles({
-      name: "bad.png",
-      mimeType: "image/png",
-      buffer: Buffer.from("not a valid image"),
-    });
+  await page.getByLabel("選擇圖片", { exact: true }).setInputFiles({
+    name: "bad.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("not a valid image"),
+  });
   await expect(page.getByRole("alert")).toContainText("無法讀取圖片");
   await expect(
     page.getByRole("button", { name: "套用處理", exact: true }),

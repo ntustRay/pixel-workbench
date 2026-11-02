@@ -4,7 +4,10 @@ import { test, expect } from "@playwright/test";
 test("real MediaPipe models run in the worker: portrait alpha, face mosaic, avatar and local-only requests", async ({
   page,
   request,
+  baseURL,
 }) => {
+  if (!baseURL) throw new Error("測試必須設定 baseURL。");
+  const appOrigin = new URL(baseURL).origin;
   const fixture = await request.get(
     "https://storage.googleapis.com/mediapipe-assets/portrait.jpg",
   );
@@ -13,21 +16,16 @@ test("real MediaPipe models run in the worker: portrait alpha, face mosaic, avat
   const outgoing: string[] = [];
   const errors: string[] = [];
   page.on("request", (req) => {
-    if (
-      !req.url().startsWith("http://127.0.0.1:4173") &&
-      !req.url().startsWith("blob:")
-    )
-      outgoing.push(req.url());
+    // 官方 fixture 由測試程序下載；瀏覽器只能向部署本身取得模型和資產。
+    if (new URL(req.url()).origin !== appOrigin) outgoing.push(req.url());
   });
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
-  await page
-    .getByLabel("選擇圖片", { exact: true })
-    .setInputFiles({
-      name: "portrait.jpg",
-      mimeType: "image/jpeg",
-      buffer: bytes,
-    });
+  await page.getByLabel("選擇圖片", { exact: true }).setInputFiles({
+    name: "portrait.jpg",
+    mimeType: "image/jpeg",
+    buffer: bytes,
+  });
   await page.getByRole("button", { name: "套用處理", exact: true }).click();
   await expect(page.getByRole("status", { name: "處理狀態" })).toContainText(
     "處理完成",

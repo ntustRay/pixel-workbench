@@ -47,6 +47,16 @@ npm run preview
 
 Playwright 預設使用下載的 Chromium；可用 `PLAYWRIGHT_CHANNEL=chrome` 選用本機 Chrome。`TEST_PRODUCTION=1` 會針對 build 後的 preview 執行操作與真模型測試；GitHub Actions 會驗證開發及 production 兩種環境。真模型測試需下載 Google 官方公開測試人像，不會將你的照片納入測試或 repo。
 
+## Vercel 部署
+
+`vercel.json` 固定使用 Vite、`npm ci`、`npm run build` 與 `dist/`。Vercel 建置時會執行 `postinstall`，下載並驗證模型，模型與 WASM 都包含在靜態部署內，不需要 Functions、環境變數或 API key。
+
+Git 整合以 `main` 作正式分支，其餘分支可產生 Preview。GitHub Actions 保留作程式碼、瀏覽器及正式 build 的驗證；Vercel 的自動部署與這組檢查各自執行。
+
+模型及 WASM 使用穩定檔名，設定為重新驗證快取，避免升級後仍使用舊版引擎；WASM 明確使用 `application/wasm`。此專案沒有前端路由，不需要將所有路徑改寫成 `index.html`。
+
+指定 `E2E_BASE_URL` 可直接驗證線上網站，不啟動本機伺服器；執行相同的下載、手機版與真模型測試，並檢查瀏覽器請求是否維持同源。
+
 ## 限制
 
 - 輸入接受 JPG、PNG、WebP；最多 20 張，每張 30 MB、4,000 萬像素。初版處理長邊最多 2,400 px，只縮小、不放大。
