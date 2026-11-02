@@ -1,0 +1,10 @@
+node_modules/
+dist/
+public/wasm/
+public/models/
+playwright-report/
+test-results/
+.env*
+!.env.example
+*.local
+.DS_Store
