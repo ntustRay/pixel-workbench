@@ -7,7 +7,8 @@ import {
   Info,
 } from "lucide-react";
 import type { EditSettings, OutputFormat, ToolId } from "../core/types";
-import { useId } from "react";
+import { Range } from "./Range";
+import { EditControls } from "./EditControls";
 
 interface Props {
   settings: EditSettings;
@@ -25,6 +26,9 @@ const titles: Record<ToolId, string> = {
   sticker: "貼紙設定",
   privacy: "馬賽克設定",
   avatar: "裁切設定",
+  crop: "裁切與旋轉",
+  adjust: "色彩與銳化",
+  watermark: "浮水印設定",
   export: "圖片設定",
 };
 const COLORS = [
@@ -35,47 +39,6 @@ const COLORS = [
   "#ffffff",
   "#152442",
 ];
-
-function Range({
-  label,
-  value,
-  min,
-  max,
-  step = 1,
-  unit = "",
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step?: number;
-  unit?: string;
-  onChange: (value: number) => void;
-}) {
-  const id = useId();
-  return (
-    <label className="range-field" htmlFor={id}>
-      <span>
-        {label}
-        <output aria-hidden="true">
-          {value}
-          {unit}
-        </output>
-      </span>
-      <input
-        id={id}
-        aria-label={label}
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-    </label>
-  );
-}
 
 export function Controls({
   settings: s,
@@ -104,7 +67,8 @@ export function Controls({
           <RotateCcw size={15} />
         </button>
       </div>
-      <div className="controls-body">
+      <fieldset className="controls-body" disabled={busy} aria-label="編輯參數">
+        <EditControls settings={s} onChange={onChange} />
         {s.tool === "background" && (
           <>
             <fieldset>
@@ -305,9 +269,9 @@ export function Controls({
           </select>
         </label>
         <p className="field-description">
-          縮小不放大；初版處理長邊上限 2,400 px。
+          只縮小、不放大；處理長邊上限 2,400 px。
         </p>
-      </div>
+      </fieldset>
       <div className="control-actions">
         <button
           className="primary-button"

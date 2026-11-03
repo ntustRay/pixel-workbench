@@ -610,6 +610,7 @@ h1 {
 .controls-body {
   padding: 20px 19px;
   flex: 1;
+  min-width: 0;
 }
 .controls-body > * + * {
   margin-top: 20px;
@@ -1354,4 +1355,72 @@ input[type="range"] {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* 編輯工具沿用工作台配色，控制項與預覽共用同一版面。 */
+.text-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ink);
+}
+.text-field input {
+  min-width: 0;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--ink);
+  background: white;
+  font-size: 13px;
+}
+.continue-edit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--soft);
+}
+.continue-edit > span {
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.continue-edit button {
+  flex-shrink: 0;
+  padding: 9px 14px;
+}
+.page-heading p {
+  color: #52627a;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.sidebar-label, .version-label {
+  letter-spacing: 0;
+  font-family: inherit;
+  font-size: 12px;
+}
+.range-field > span, legend, .select-field, .controls h3, .panel-heading h2 {
+  font-size: 12px;
+  color: #52627a;
+}
+.field-description, .hint {
+  font-size: 11px;
+  color: #52627a;
+}
+.range-field output {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: #52627a;
+}
+@media (max-width: 700px) {
+  .controls-body > .text-field { grid-column: 1 / -1; }
+  .continue-edit { flex-wrap: wrap; }
+  .continue-edit button { width: 100%; }
+  .tool-button { flex: 0 0 88px; }
+  .tool-button span { font-size: 11px; }
+  .page-heading p { font-size: 13px; }
 }

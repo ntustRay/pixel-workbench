@@ -3,7 +3,7 @@
 以同一條圖片處理流程支援單張預覽與批次輸出。UI、圖片效果、模型 adapter 分開；不用為每個功能重建上傳、下載或 Worker 管理。
 
 ```mermaid
-flowchart LR
+flowchart TD
   UI[React UI] --> Client[ImageProcessor]
   Client --> Worker[Module Worker]
   Worker --> Pipeline[runPipeline]
@@ -29,8 +29,17 @@ flowchart LR
 1. `readSource()` 驗證格式、檔案大小與像素數，保留原始 `File`；建立供預覽使用的 Object URL。
 2. `ImageProcessor.process()` 將圖片解碼成最多長邊 2,400 px 的 `ImageBitmap`，以 transferable 交給 Worker。
 3. `runPipeline()` 驗證設定、呼叫選定工具。Worker 只快取目前這張圖片與尺寸的人像遮罩／人臉框，換效果可沿用，換圖即釋放；單次 pipeline 也以 Promise 避免重複推論。
-4. 工具輸出 `OffscreenCanvas`；pipeline 再統一縮圖、曝光與編碼。JPEG 透明區填白；瀏覽器不能提供要求的編碼格式時回報錯誤。
+4. 工具輸出 `OffscreenCanvas`；pipeline 再統一縮圖、曝光與編碼。文字浮水印在縮圖與曝光之後繪製，讓文字大小依最終短邊計算、顏色不受曝光影響。JPEG 透明區填白；瀏覽器不能提供要求的編碼格式時回報錯誤。
 5. UI 用新的結果 Blob 建立預覽；只有結果仍對應目前圖片和設定時才能下載。批次沿用同一處理入口、設定快照與取消訊號，逐張把結果加入 ZIP。
+
+## Canvas 工具與接續編輯
+
+- `features/crop.ts` 先旋轉與翻轉，再以 `cropRect()` 計算裁切區；位置是剩餘可移動範圍的百分比，不把圖片放大。
+- `features/adjust.ts` 以 Canvas filter 處理對比、飽和度與黑白，再呼叫 `core/pixels.ts` 的 `sharpenPixels()` 以四鄰點高通運算銳化。從原始像素讀取、寫回另一份陣列，避免掃描方向影響結果；alpha 維持不變，透明鄰點依 alpha 降低權重，避免黑邊。
+- `features/watermark.ts` 使用 `measureText()` 取得字體寬度，`core/watermark-layout.ts` 計算字級與位置。字級依輸出短邊計算；同一設定可套用不同尺寸圖片，五種位置都保留邊距。
+- 新工具不呼叫 `AnalysisProvider`，沿用現有 Worker、取消、錯誤與批次流程。所有參數由 `core/settings.ts` 在 pipeline 入口驗證。
+- 「接續編輯」先把結果 Blob 包成新的 `File`，透過同一個 `readSource()` 驗證，成功才加入清單；保留原圖、清除舊預覽 URL 並重設設定。圖片清單滿 20 張時提示先移除，不覆寫既有檔案。
+- 貼上圖片走既有匯入流程；輸入框中的文字貼上不會觸發圖片匯入。
 
 ## 模型與 Worker 生命週期
 
@@ -56,8 +65,14 @@ WASM 是主要載入成本：SIMD binary 約 11.45 MB，加 loader 約 205 KB；
 
 1. 在 `types.ts` 增加 `ToolId` 與必要設定；只有出現真正新能力時才擴充 `AnalysisProvider` 的 interface。
 2. 在 `features/` 實作工具，接受 `ImageBitmap`、設定及 provider，回傳 `OffscreenCanvas`。重用現有 Canvas／geometry helper。
-3. 在 `pipeline.ts` 的 `processors` registry 註冊實作；`catalog.ts` 加入顯示資訊，並在 `Controls.tsx` 提供有效設定。UI 入口要等處理功能可用才加入。
+3. 在 `pipeline.ts` 的 `processors` registry 註冊實作；`catalog.ts` 加入顯示資訊，並在 `Controls.tsx`／`EditControls.tsx` 提供有效設定。UI 入口要等處理功能可用才加入。
 4. 新模型實作 adapter，轉成既有的遮罩／人臉框資料；例如 YuNet 可替換 `faces()` 的內部實作，馬賽克與頭像工具不用知道 ONNX 輸出結構。
 5. 將固定來源、SHA-256、授權與限制加入資產腳本和 notices；使用共用 pipeline 測試功能，再以真實模型做瀏覽器端到端驗證。
 
 DnCNN、TEED 等需要新的影像修復能力時，先確認實際介面與驗證資料，再引入 runtime；不為 roadmap 預建空 adapter 或假按鈕。選型理由見[模型文件](model-decisions.md)。
+
+## 目前的驗證範圍
+
+GitHub Actions 每次 push／PR 執行依賴稽核、Vitest 與 TypeScript／Vite production build，不自動執行 E2E。
+
+單元測試直接檢查像素陣列與幾何資料：裁切位置、銳化強度、邊界像素、半透明及全透明邊緣、長文字縮放、浮水印錨點、非有限數值、設定與檔案驗證。Canvas 原生 API、字體實際顯示、模型品質與操作流程仍可手動驗證；既有 Playwright 指令保留，不作為快速迭代的自動檢查。

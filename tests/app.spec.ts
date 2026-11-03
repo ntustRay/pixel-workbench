@@ -47,7 +47,7 @@ test("demo creates a real transparent sticker and downloads an image and batch Z
   expect(external).toEqual([]);
   await page.getByRole("button", { name: "移除 grow-slow.png" }).click();
   await expect(
-    page.getByRole("heading", { name: "好作品，從這張開始。" }),
+    page.getByRole("heading", { name: "加入要處理的圖片" }),
   ).toBeVisible();
   await expect(download).toBeDisabled();
 });
