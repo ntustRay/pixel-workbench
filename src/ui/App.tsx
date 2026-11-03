@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Aperture,
-  ArrowDownToLine,
   ArrowUpRight,
   Check,
   CheckCheck,
   ChevronRight,
-  Crop,
   Download,
   Eraser,
   Files,
+  RotateCw,
+  SlidersHorizontal,
+  Type,
   ImagePlus,
   Layers3,
   LoaderCircle,
@@ -17,7 +17,6 @@ import {
   Plus,
   ScanFace,
   Shield,
-  Sparkles,
   Sticker,
   Trash2,
   Upload,
@@ -44,7 +43,10 @@ const icons: Record<ToolId, LucideIcon> = {
   background: Eraser,
   sticker: Sticker,
   privacy: ScanFace,
-  avatar: Crop,
+  avatar: ScanFace,
+  crop: RotateCw,
+  adjust: SlidersHorizontal,
+  watermark: Type,
   export: Files,
 };
 interface Preview {
@@ -64,7 +66,7 @@ export function App() {
   const [working, setWorking] = useState<
     "idle" | "importing" | "processing" | "batch"
   >("idle");
-  const [status, setStatus] = useState("準備好，從一張圖片開始。");
+  const [status, setStatus] = useState("請加入圖片，選擇工具後套用處理。");
   const [error, setError] = useState("");
   const [batchWarnings, setBatchWarnings] = useState<string[]>([]);
   const [original, setOriginal] = useState(false);
@@ -248,6 +250,44 @@ export function App() {
     setStatus("已取消處理。");
   }
 
+  async function continueEditing() {
+    if (!source || !currentPreview || !upToDate || busy) return;
+    if (sources.length >= MAX_FILES) {
+      setError("圖片清單已滿，請先移除一張再接續編輯。");
+      return;
+    }
+    setWorking("importing");
+    setError("");
+    try {
+      const file = new File(
+        [currentPreview.result.blob],
+        outputName(source.file.name, settings),
+        {
+          type: currentPreview.result.blob.type,
+        },
+      );
+      const next = await readSource(file);
+      setSources((previous) => [...previous, next]);
+      setSelected(next.id);
+      setSettings({ ...DEFAULT_SETTINGS, tool: "export" });
+      if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+      previewUrl.current = undefined;
+      setPreview(undefined);
+      setOriginal(false);
+      setCompare(false);
+      setBatchWarnings([]);
+      setStatus("已將處理結果加入清單，請選擇下一個工具。原圖仍保留在清單內。");
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "無法接續編輯，請下載後重新加入。",
+      );
+    } finally {
+      setWorking("idle");
+    }
+  }
+
   function removeSource(id: string) {
     const target = sources.find((item) => item.id === id);
     if (target) URL.revokeObjectURL(target.url);
@@ -262,7 +302,24 @@ export function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      onPaste={(event) => {
+        const target = event.target;
+        if (
+          target instanceof HTMLElement &&
+          (target.matches("input, textarea") || target.isContentEditable)
+        )
+          return;
+        const files = Array.from(event.clipboardData.files).filter((file) =>
+          file.type.startsWith("image/"),
+        );
+        if (files.length && !busy) {
+          event.preventDefault();
+          void importFiles(files);
+        }
+      }}
+    >
       <header className="app-header">
         <a className="brand" href="./" aria-label="Pixel Workbench 首頁">
           <span className="brand-icon">
@@ -294,12 +351,14 @@ export function App() {
       </header>
       <div className="workspace">
         <nav className="sidebar" aria-label="圖片工具">
-          <div className="sidebar-label">你的圖片工具箱</div>
+          <div className="sidebar-label">圖片工具</div>
           {TOOLS.map((item) => {
             const Icon = icons[item.id];
             return (
               <button
                 key={item.id}
+                aria-label={item.label}
+                title={item.label}
                 aria-pressed={settings.tool === item.id}
                 className={`tool-button ${settings.tool === item.id ? "active" : ""}`}
                 onClick={() => updateSettings({ tool: item.id })}
@@ -315,8 +374,8 @@ export function App() {
             );
           })}
           <div className="sidebar-bottom">
-            <div className="version-label">WORKBENCH / V0.1</div>
-            <p>小工具，大一點的創作空間。</p>
+            <div className="version-label">Pixel Workbench 0.2</div>
+            <p>所有工具皆在瀏覽器處理。</p>
             <div className="privacy-note">
               <LockKeyhole size={15} />
               <span>
@@ -330,14 +389,9 @@ export function App() {
         <main className="main-content">
           <div className="page-heading">
             <div>
-              <div className="eyebrow">YOUR PHOTOS. YOUR SPACE.</div>
-              <h1>讓圖片，剛剛好。</h1>
-              <p>去掉背景、留住主角，讓下一步更簡單。</p>
+              <h1>瀏覽器圖片工具</h1>
+              <p>{tool.description}</p>
             </div>
-            <span className="edition">
-              <Aperture size={18} />
-              圖片工作台<span>01</span>
-            </span>
           </div>
           <input
             ref={input}
@@ -460,14 +514,11 @@ export function App() {
                       <div className="art-back" />
                       <div className="art-front">
                         <ImagePlus size={38} strokeWidth={1.4} />
-                        <span className="art-spark">
-                          <Sparkles size={20} />
-                        </span>
                       </div>
                       <span className="art-dot" />
                     </div>
-                    <h2>好作品，從這張開始。</h2>
-                    <p>拖曳圖片到這裡，或從裝置選取</p>
+                    <h2>加入要處理的圖片</h2>
+                    <p>拖曳、選取，或按 Ctrl／⌘ + V 貼上圖片</p>
                     <button
                       className="primary-button"
                       onClick={() => input.current?.click()}
@@ -524,6 +575,18 @@ export function App() {
                 </span>
                 <span className="status-right">本機處理</span>
               </div>
+              {currentPreview && (
+                <div className="continue-edit">
+                  <span>將結果加入清單，繼續套用其他工具。原圖會保留。</span>
+                  <button
+                    className="secondary-button"
+                    disabled={busy || !upToDate}
+                    onClick={() => void continueEditing()}
+                  >
+                    接續編輯
+                  </button>
+                </div>
+              )}
             </section>
             <Controls
               settings={settings}
@@ -639,7 +702,7 @@ export function App() {
               </div>
             ) : (
               <div className="tray-empty">
-                <span>一次放入多張圖片，套用相同設定，一起帶走。</span>
+                <span>最多加入 20 張圖片，套用相同設定後下載 ZIP。</span>
                 <button onClick={() => input.current?.click()} disabled={busy}>
                   <Plus size={15} />
                   加入圖片
@@ -650,11 +713,9 @@ export function App() {
           <div className="workspace-footer">
             <span>
               <Shield size={13} />
-              照片不會傳送到伺服器 · 首次 AI 處理會載入本機網站的模型資產
+              圖片在裝置上處理；去背與人臉工具首次使用時會載入本站模型。
             </span>
-            <span>
-              MADE FOR YOUR NEXT EDIT <ArrowDownToLine size={12} />
-            </span>
+            <span>JPG / PNG / WebP</span>
           </div>
         </main>
       </div>

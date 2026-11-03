@@ -15,6 +15,33 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+// 位置以可裁切的剩餘空間為基準：0 靠左／上，100 靠右／下。
+export function cropRect(
+  width: number,
+  height: number,
+  ratio: number | null,
+  x: number,
+  y: number,
+): Rect {
+  if (
+    ![width, height].every((n) => Number.isFinite(n) && n > 0) ||
+    ![x, y].every(Number.isFinite) ||
+    (ratio !== null && !(Number.isFinite(ratio) && ratio > 0))
+  ) {
+    throw new Error("裁切尺寸或位置不正確。");
+  }
+  const cropWidth = ratio === null ? width : Math.min(width, height * ratio);
+  const cropHeight = ratio === null ? height : cropWidth / ratio;
+  const w = Math.max(1, Math.round(cropWidth));
+  const h = Math.max(1, Math.round(cropHeight));
+  return {
+    x: Math.round(((width - w) * clamp(x, 0, 100)) / 100),
+    y: Math.round(((height - h) * clamp(y, 0, 100)) / 100),
+    width: w,
+    height: h,
+  };
+}
+
 export function fitWithin(
   width: number,
   height: number,

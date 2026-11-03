@@ -1,10 +1,14 @@
 import { runAvatar } from "../features/avatar";
 import { runBackground } from "../features/background";
+import { runCrop } from "../features/crop";
+import { runAdjust } from "../features/adjust";
+import { applyWatermark } from "../features/watermark";
 import { context, copyImage, surface } from "../features/canvas";
 import { runPrivacy } from "../features/privacy";
 import { runSticker } from "../features/sticker";
 import { TOOLS } from "./catalog";
 import { clamp, fitWithin, validFaces } from "./geometry";
+import { CROP_RATIOS, ROTATIONS, WATERMARK_POSITIONS } from "./types";
 import type {
   AnalysisProvider,
   EditSettings,
@@ -20,6 +24,9 @@ const processors: Record<ToolId, ToolDefinition["run"]> = {
   sticker: runSticker,
   privacy: runPrivacy,
   avatar: runAvatar,
+  crop: runCrop,
+  adjust: runAdjust,
+  watermark: async (image) => copyImage(image),
   export: async (image) => copyImage(image),
 };
 
@@ -39,9 +46,24 @@ function normalize(settings: EditSettings): EditSettings {
   if (!["1:1", "4:5", "3:4"].includes(settings.avatarRatio))
     throw new Error("不支援這個頭像比例。");
   if (
-    ![settings.backgroundColor, settings.outlineColor].every((color) =>
-      /^#[\da-f]{6}$/i.test(color),
-    )
+    !CROP_RATIOS.includes(settings.cropRatio) ||
+    !ROTATIONS.includes(settings.rotation)
+  )
+    throw new Error("不支援這個裁切比例或旋轉角度。");
+  if (!WATERMARK_POSITIONS.includes(settings.watermarkPosition))
+    throw new Error("不支援這個浮水印位置。");
+  const watermarkText = settings.watermarkText.replace(/[\r\n\t]/g, " ").trim();
+  if (
+    settings.tool === "watermark" &&
+    (!watermarkText || Array.from(watermarkText).length > 80)
+  )
+    throw new Error("請輸入 1 至 80 個字的浮水印文字。");
+  if (
+    ![
+      settings.backgroundColor,
+      settings.outlineColor,
+      settings.watermarkColor,
+    ].every((color) => /^#[\da-f]{6}$/i.test(color))
   )
     throw new Error("顏色格式不正確。");
   return {
@@ -51,6 +73,14 @@ function normalize(settings: EditSettings): EditSettings {
     shadow: finite(settings.shadow, 0, 50),
     pixelSize: finite(settings.pixelSize, 6, 80),
     exposure: finite(settings.exposure, -2, 2),
+    cropX: finite(settings.cropX, 0, 100),
+    cropY: finite(settings.cropY, 0, 100),
+    contrast: finite(settings.contrast, -100, 100),
+    saturation: finite(settings.saturation, -100, 100),
+    sharpen: finite(settings.sharpen, 0, 100),
+    watermarkText,
+    watermarkOpacity: finite(settings.watermarkOpacity, 0.1, 1),
+    watermarkSize: finite(settings.watermarkSize, 2, 15),
     quality: finite(settings.quality, 0.1, 1),
     maxEdge: Math.round(finite(settings.maxEdge, 128, 4096)),
   };
@@ -95,6 +125,8 @@ export async function runPipeline(
   ctx.imageSmoothingQuality = "high";
   ctx.filter = `brightness(${2 ** settings.exposure})`;
   ctx.drawImage(processed, 0, 0, canvas.width, canvas.height);
+  ctx.filter = "none";
+  if (settings.tool === "watermark") applyWatermark(canvas, settings);
   const count = faces ? (await faces).length : 0;
   if (settings.tool === "privacy") {
     warnings.push(

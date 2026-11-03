@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   avatarRect,
+  cropRect,
   fitWithin,
   privacyRect,
   stickerPadding,
@@ -79,5 +80,40 @@ describe("sticker canvas padding", () => {
   it("leaves room for the outline, blur and shadow offset", () => {
     expect(stickerPadding(12, 18)).toBe(57);
     expect(stickerPadding(0, 0)).toBe(0);
+  });
+});
+
+describe("cropRect", () => {
+  it("positions a square crop within a wide image without changing scale", () => {
+    expect(cropRect(160, 120, 1, 0, 50)).toEqual({
+      x: 0,
+      y: 0,
+      width: 120,
+      height: 120,
+    });
+    expect(cropRect(160, 120, 1, 100, 50)).toEqual({
+      x: 40,
+      y: 0,
+      width: 120,
+      height: 120,
+    });
+    expect(cropRect(120, 160, 1, 50, 100)).toEqual({
+      x: 0,
+      y: 40,
+      width: 120,
+      height: 120,
+    });
+    expect(cropRect(160, 120, null, 100, 100)).toEqual({
+      x: 0,
+      y: 0,
+      width: 160,
+      height: 120,
+    });
+  });
+  it("clamps anchors and rejects invalid geometry", () => {
+    expect(cropRect(160, 120, 1, 200, -10).x).toBe(40);
+    expect(() => cropRect(0, 120, 1, 50, 50)).toThrow();
+    expect(() => cropRect(160, 120, NaN, 50, 50)).toThrow();
+    expect(() => cropRect(160, 120, 1, NaN, 50)).toThrow();
   });
 });
