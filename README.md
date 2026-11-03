@@ -4,8 +4,6 @@
 
 正式網站：[pixel-workbench-eta.vercel.app](https://pixel-workbench-eta.vercel.app)
 
-![Pixel Workbench 貼紙工作台預覽](docs/preview.png)
-
 ## 功能
 
 | 工具       | 已實作                                                   |
@@ -58,9 +56,9 @@ npm run test:e2e
 npm run preview
 ```
 
-`build` 產生 `dist/`，可交給支援靜態檔案的 HTTPS 主機。請完整包含模型、WASM 與授權資訊；模型和 WASM 不應被 SPA fallback 回傳成 HTML。純運算測試與瀏覽器測試分開，測試內容見 `src/core/*.test.ts`、`tests/`。
+`build` 產生 `dist/`，可交給支援靜態檔案的 HTTPS 主機。請完整包含模型、WASM 與授權資訊；模型和 WASM 不應被 SPA fallback 回傳成 HTML。主要檢查為 `npm test` 與 `npm run build`。單元測試直接驗證裁切座標、RGBA 銳化、alpha 保留、浮水印版面、參數邊界與檔案驗證；不需要下載瀏覽器。`tests/` 中的 E2E 保留為手動執行。
 
-Playwright 預設使用下載的 Chromium；可用 `PLAYWRIGHT_CHANNEL=chrome` 選用本機 Chrome。`TEST_PRODUCTION=1` 會針對 build 後的 preview 執行操作與真模型測試；GitHub Actions 會驗證開發及 production 兩種環境。真模型測試需下載 Google 官方公開測試人像，不會將你的照片納入測試或 repo。
+Playwright 預設使用下載的 Chromium；可用 `PLAYWRIGHT_CHANNEL=chrome` 選用本機 Chrome。`TEST_PRODUCTION=1` 會針對 build 後的 preview 執行操作與真模型測試；GitHub Actions 只執行依賴稽核、unit test 與 production build；E2E 保留為手動指令，不在每次 push／PR 執行。真模型測試需下載 Google 官方公開測試人像，不會將你的照片納入測試或 repo。
 
 ## Vercel 部署
 
@@ -68,7 +66,7 @@ Playwright 預設使用下載的 Chromium；可用 `PLAYWRIGHT_CHANNEL=chrome` �
 
 `package.json` 固定 Node.js 24.x，讓 Vercel 與 GitHub Actions 使用相同的主要版本。
 
-Git 整合以 `main` 作正式分支，其餘分支可產生 Preview。GitHub Actions 保留作程式碼、瀏覽器及正式 build 的驗證；Vercel 的自動部署與這組檢查各自執行。
+Git 整合以 `main` 作正式分支，其餘分支可產生 Preview。GitHub Actions 執行依賴稽核、unit test 與正式 build 驗證；Vercel 的自動部署與這組檢查各自執行。
 
 模型及 WASM 使用穩定檔名，設定為重新驗證快取，避免升級後仍使用舊版引擎；WASM 明確使用 `application/wasm`。此專案沒有前端路由，不需要將所有路徑改寫成 `index.html`。
 

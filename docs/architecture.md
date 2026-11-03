@@ -35,9 +35,9 @@ flowchart TD
 ## Canvas 工具與接續編輯
 
 - `features/crop.ts` 先旋轉與翻轉，再以 `cropRect()` 計算裁切區；位置是剩餘可移動範圍的百分比，不把圖片放大。
-- `features/adjust.ts` 以 Canvas filter 處理對比、飽和度與黑白，再以四鄰點高通運算銳化。從原始像素副本讀取、寫回另一份陣列，避免掃描方向影響結果；alpha 維持不變，透明鄰點依 alpha 降低權重，避免黑邊。
-- `features/watermark.ts` 使用 `measureText()` 限制文字寬度。字級依輸出短邊計算；同一設定可套用不同尺寸圖片，五種位置都保留邊距。
-- 新工具不呼叫 `AnalysisProvider`，沿用現有 Worker、取消、錯誤與批次流程。所有參數在 pipeline 入口驗證。
+- `features/adjust.ts` 以 Canvas filter 處理對比、飽和度與黑白，再呼叫 `core/pixels.ts` 的 `sharpenPixels()` 以四鄰點高通運算銳化。從原始像素讀取、寫回另一份陣列，避免掃描方向影響結果；alpha 維持不變，透明鄰點依 alpha 降低權重，避免黑邊。
+- `features/watermark.ts` 使用 `measureText()` 取得字體寬度，`core/watermark-layout.ts` 計算字級與位置。字級依輸出短邊計算；同一設定可套用不同尺寸圖片，五種位置都保留邊距。
+- 新工具不呼叫 `AnalysisProvider`，沿用現有 Worker、取消、錯誤與批次流程。所有參數由 `core/settings.ts` 在 pipeline 入口驗證。
 - 「接續編輯」先把結果 Blob 包成新的 `File`，透過同一個 `readSource()` 驗證，成功才加入清單；保留原圖、清除舊預覽 URL 並重設設定。圖片清單滿 20 張時提示先移除，不覆寫既有檔案。
 - 貼上圖片走既有匯入流程；輸入框中的文字貼上不會觸發圖片匯入。
 
@@ -70,3 +70,9 @@ WASM 是主要載入成本：SIMD binary 約 11.45 MB，加 loader 約 205 KB；
 5. 將固定來源、SHA-256、授權與限制加入資產腳本和 notices；使用共用 pipeline 測試功能，再以真實模型做瀏覽器端到端驗證。
 
 DnCNN、TEED 等需要新的影像修復能力時，先確認實際介面與驗證資料，再引入 runtime；不為 roadmap 預建空 adapter 或假按鈕。選型理由見[模型文件](model-decisions.md)。
+
+## 目前的驗證範圍
+
+GitHub Actions 每次 push／PR 執行依賴稽核、Vitest 與 TypeScript／Vite production build，不自動執行 E2E。
+
+單元測試直接檢查像素陣列與幾何資料：裁切位置、銳化強度、邊界像素、半透明及全透明邊緣、長文字縮放、浮水印錨點、非有限數值、設定與檔案驗證。Canvas 原生 API、字體實際顯示、模型品質與操作流程仍可手動驗證；既有 Playwright 指令保留，不作為快速迭代的自動檢查。
