@@ -100,11 +100,13 @@ export async function archiveResults(
           onProgress(index + 1, sources.length);
           const result = await process(sources[index]);
           signal.throwIfAborted();
+          const bytes = await result.blob.arrayBuffer();
+          signal.throwIfAborted();
           const entry = new ZipPassThrough(
             outputName(sources[index].file.name, settings, index),
           );
           zip.add(entry);
-          entry.push(new Uint8Array(await result.blob.arrayBuffer()), true);
+          entry.push(new Uint8Array(bytes), true);
           warnings.push(
             ...result.warnings.map(
               (warning) => `${sources[index].file.name}：${warning}`,
