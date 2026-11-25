@@ -40,14 +40,15 @@
 		// biome-ignore lint/complexity/noArguments: Google's tag consumes arguments objects in the data layer.
 		window.dataLayer.push(arguments);
 	}
+	window.gtag = command;
 	command("js", new Date());
 	command("config", measurementId, {
 		...page,
-		send_page_view: false,
+		send_page_view: true,
 		allow_google_signals: false,
 		allow_ad_personalization_signals: false,
 	});
-	command("event", "page_view", { ...page, send_to: measurementId });
+
 	const tag = document.createElement("script");
 	tag.async = true;
 	tag.referrerPolicy = "no-referrer";
